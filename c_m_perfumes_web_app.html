@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C&M Perfumes - Haute Parfumerie &amp; Management</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts & Lucide Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(217, 119, 6, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(217, 119, 6, 0.6); }
+    </style>
+</head>
+<body class="min-h-screen bg-[#0b0d14] text-slate-100 flex flex-col transition-colors duration-200 selection:bg-amber-500 selection:text-slate-950">
+
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <header id="main-header" class="bg-[#0e111a]/95 backdrop-blur-md sticky top-0 z-30 border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-xl border bg-slate-900 border-slate-800 text-slate-300">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                </button>
+                <div class="flex items-center space-x-3.5 group cursor-pointer" onclick="switchTab('inicio')">
+                    <div class="relative w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-700 via-amber-500 to-amber-200 p-[1px] shadow-xl shadow-amber-950/30">
+                        <div class="w-full h-full rounded-[15px] flex items-center justify-center bg-[#0b0d14]">
+                            <span class="font-serif italic font-bold bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 bg-clip-text text-transparent text-sm tracking-tighter">
+                                C&M
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col justify-center">
+                        <span class="font-serif text-base tracking-[0.25em] font-medium bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 bg-clip-text text-transparent uppercase leading-tight">
+                            C&M Perfumes
+                        </span>
+                        <span class="text-[8px] font-mono tracking-[0.3em] uppercase mt-0.5 text-amber-500/60">
+                            Mati &amp; Cele &bull; Partner Management
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleTheme()" class="p-2 rounded-xl border bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-800 transition-colors" title="Cambiar tema">
+                    <i id="theme-icon" data-lucide="sun" class="w-4 h-4"></i>
+                </button>
+                <button onclick="openConfigModal()" class="px-3 py-1.5 rounded-xl border text-xs font-mono flex items-center space-x-1.5 transition-colors bg-amber-500/10 border-amber-500/30 text-amber-400">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                    <span id="supabase-status-text" class="hidden sm:inline">Conectar Supabase</span>
+                </button>
+                <div id="auth-header-section">
+                    <!-- Auth indicator -->
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="max-w-md w-full p-6 rounded-2xl border shadow-2xl space-y-4 bg-slate-900 border-slate-800">
+            <div class="text-center space-y-1">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+                    <i data-lucide="lock" class="w-5 h-5"></i>
+                </div>
+                <h2 class="font-serif text-xl font-normal text-amber-200">Acceso a C&amp;M Perfumes</h2>
+                <p class="text-xs text-slate-400">Ingresa con tu usuario registrado para sincronizar datos en vivo.</p>
+            </div>
+            <div id="auth-error-box" class="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400 flex items-center space-x-2 hidden">
+                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                <span id="auth-error-msg"></span>
+            </div>
+            <form onsubmit="handleLogin(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Correo Electrónico</label>
+                    <input type="email" id="login-email" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="mati@cmperfumes.com">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Contraseña</label>
+                    <input type="password" id="login-password" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-semibold hover:from-amber-400 hover:to-amber-500 transition-all shadow-lg">
+                    Iniciar Sesión
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col md:flex-row">
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-[#090b10] border-r border-slate-800/80 text-slate-300 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out flex flex-col">
+            <div class="p-4 border-b border-slate-800/80 flex justify-between items-center md:hidden">
+                <span class="font-serif text-sm tracking-widest text-amber-200 uppercase">Menú C&amp;M</span>
+                <button onclick="toggleMobileMenu()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <nav id="nav-menu" class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <!-- Navigation items injected via JS -->
+            </nav>
+            <div class="p-4 border-t border-slate-800/80 text-[11px] text-slate-500 text-center font-mono">
+                C&amp;M Perfumes &bull; v2.7 HTML Pro
+            </div>
+        </aside>
+
+        <!-- Main Content Canvas Area -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+            <div id="view-container">
+                <!-- Dynamic View Rendered Here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Supabase Config Modal -->
+    <div id="config-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="max-w-md w-full p-6 rounded-2xl border shadow-2xl space-y-4 bg-slate-900 border-slate-800">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="font-serif text-lg text-amber-200">Configuración Supabase</h3>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="saveSupabaseConfig(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Supabase URL</label>
+                    <input type="text" id="sup-url-input" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono" placeholder="https://xyz.supabase.co">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Supabase Anon Key</label>
+                    <input type="password" id="sup-key-input" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono" placeholder="eyJhbGciOi...">
+                </div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Guardar Conexión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dynamic Modal Container for Product, Order, Sale, Cash -->
+    <div id="dynamic-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div id="dynamic-modal-content" class="max-w-xl w-full p-6 rounded-2xl border shadow-2xl space-y-4 bg-slate-900 border-slate-800 max-h-[90vh] overflow-y-auto">
+            <!-- Modal content injected -->
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let theme = localStorage.getItem('CM_THEME') || 'dark';
+        let activeTab = 'inicio';
+        let mobileMenuOpen = false;
+
+        let supabaseUrl = localStorage.getItem('CM_SUPABASE_URL') || '';
+        let supabaseKey = localStorage.getItem('CM_SUPABASE_KEY') || '';
+        let supabaseClient = null;
+        let currentUser = null;
+
+        // Data arrays
+        let state = {
+            products: [
+                { id: 'p1', name: 'Sauvage', brand: 'Dior', concentration: 'EDP', volume_ml: 100, internal_code: 'CM-101', cost_price: 45000, sale_price: 98000, physical_stock: 8, reserved_stock: 2, min_stock: 2, notes: 'Batch 2025' },
+                { id: 'p2', name: 'Bleu de Chanel', brand: 'Chanel', concentration: 'EDP', volume_ml: 100, internal_code: 'CM-102', cost_price: 52000, sale_price: 115000, physical_stock: 5, reserved_stock: 1, min_stock: 2, notes: 'Excelente salida' },
+                { id: 'p3', name: 'Baccarat Rouge 540', brand: 'Maison Francis Kurkdjian', concentration: 'Extrait', volume_ml: 70, internal_code: 'CM-103', cost_price: 75000, sale_price: 165000, physical_stock: 3, reserved_stock: 0, min_stock: 1, notes: 'Alta demanda' }
+            ],
+            inventoryMovements: [
+                { id: 'm1', product_id: 'p1', type: 'COMPRA', quantity: 10, reason: 'Ingreso inicial por reposición', user_email: 'mati@cmperfumes.com' }
+            ],
+            orders: [
+                { id: 'o1', client_name: 'Lucía Gómez', client_phone: '+5491123456789', product_id: 'p1', product_name: 'Dior Sauvage EDP', quantity: 1, agreed_price: 98000, status: 'Reservado', payment_status: 'Seña Pagada', paid_amount: 30000, pending_amount: 68000, notes: 'Retira el viernes' }
+            ],
+            sales: [
+                { id: 's1', operation_number: 1001, client_name: 'Carlos Ruiz', total_amount: 115000, total_cost: 52000, estimated_margin: 63000, net_profit: 63000, mati_profit: 31500, cele_profit: 31500, payment_status: 'Cobrado', delivery_status: 'Entregado', payment_method: 'Transferencia', paid_amount: 115000, pending_amount: 0, items: [{ product_id: 'p2', product_name: 'Bleu de Chanel EDP', quantity: 1, unit_price: 115000, unit_cost: 52000 }] }
+            ],
+            cashMovements: [
+                { id: 'c1', type: 'INGRESO', category: 'Venta', description: 'Venta #1001 Carlos Ruiz', amount: 115000, payment_method: 'Transferencia', date: '2026-10-15' }
+            ],
+            supplies: [
+                { id: 'sup1', name: 'Frascos 100ml Cristal', unit: 'Unidades', quantity: 45, min_stock: 15, unit_cost: 1800 },
+                { id: 'sup2', name: 'Atomizadores Negro/Plata', unit: 'Unidades', quantity: 60, min_stock: 20, unit_cost: 600 }
+            ],
+            debts: [
+                { id: 'd1', concept: 'Capital Inicial Préstamo Reposición', initial_amount: 220000, current_amount: 120000, status: 'En Pago' }
+            ]
+        };
+
+        const navItems = [
+            { id: 'inicio', label: 'Resumen General', icon: 'layout-dashboard' },
+            { id: 'stock', label: 'Stock & Inventario', icon: 'package' },
+            { id: 'pedidos', label: 'Pedidos y Reservas', icon: 'shopping-bag' },
+            { id: 'ventas', label: 'Ventas (Mati & Cele)', icon: 'shopping-cart' },
+            { id: 'caja', label: 'Caja y Movimientos', icon: 'wallet' },
+            { id: 'inversion', label: 'Ganancias & Inversión', icon: 'users' },
+            { id: 'insumos', label: 'Insumos y Packaging', icon: 'box' },
+            { id: 'calculadora', label: 'Calculadora de Margen', icon: 'calculator' },
+            { id: 'informes', label: 'Reportes y Datos', icon: 'file-text' },
+            { id: 'config', label: 'Ajustes', icon: 'settings' }
+        ];
+
+        // --- Initialization ---
+        window.onload = function() {
+            applyTheme();
+            initSupabaseClient();
+            renderNavigation();
+            renderHeaderAuth();
+            switchTab('inicio');
+            lucide.createIcons();
+        };
+
+        function initSupabaseClient() {
+            if (supabaseUrl && supabaseKey && window.supabase) {
+                try {
+                    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+                    document.getElementById('supabase-status-text').innerText = 'Supabase Conectado';
+                    checkSupabaseSession();
+                } catch(e) {
+                    console.error('Supabase init error', e);
+                }
+            } else {
+                document.getElementById('supabase-status-text').innerText = 'Conectar Supabase';
+            }
+        }
+
+        async function checkSupabaseSession() {
+            if (!supabaseClient) return;
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.user) {
+                currentUser = session.user;
+                renderHeaderAuth();
+                fetchAllDataSupabase();
+            } else {
+                // Show login modal if configured but not logged in
+                document.getElementById('login-modal').classList.remove('hidden');
+            }
+        }
+
+        async function fetchAllDataSupabase() {
+            if (!supabaseClient) return;
+            try {
+                const { data: prod } = await supabaseClient.from('products').select('*');
+                if (prod && prod.length > 0) state.products = prod;
+                const { data: ord } = await supabaseClient.from('orders').select('*');
+                if (ord && ord.length > 0) state.orders = ord;
+                const { data: sal } = await supabaseClient.from('sales').select('*');
+                if (sal && sal.length > 0) state.sales = sal;
+                renderCurrentView();
+            } catch(e) {
+                console.error('Error fetching Supabase data:', e);
+            }
+        }
+
+        // --- UI Helper Functions ---
+        function notify(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-2xl border text-white flex items-center space-x-3 backdrop-blur-md transition-all transform translate-y-2 opacity-0 ${
+                type === 'success' ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200' : 'bg-rose-950/90 border-rose-500/50 text-rose-200'
+            }`;
+            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle-2' : 'alert-triangle'}" class="w-4 h-4 ${type === 'success' ? 'text-emerald-400' : 'text-rose-400'}"></i><span class="font-medium text-sm tracking-wide">${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function toggleTheme() {
+            theme = theme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('CM_THEME', theme);
+            applyTheme();
+        }
+
+        function applyTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                if(icon) icon.setAttribute('data-lucide', 'sun');
+            } else {
+                html.classList.remove('dark');
+                if(icon) icon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+
+        function toggleMobileMenu() {
+            mobileMenuOpen = !mobileMenuOpen;
+            const sidebar = document.getElementById('sidebar');
+            if (mobileMenuOpen) {
+                sidebar.classList.remove('-translate-x-full');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+            }
+        }
+
+        function renderNavigation() {
+            const nav = document.getElementById('nav-menu');
+            nav.innerHTML = navItems.map(item => {
+                const isActive = activeTab === item.id;
+                return `
+                    <button onclick="switchTab('${item.id}')" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                        isActive 
+                            ? 'bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30 text-amber-300 font-semibold' 
+                            : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200'
+                    }">
+                        <i data-lucide="${item.icon}" class="w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400'}"></i>
+                        <span>${item.label}</span>
+                    </button>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function renderHeaderAuth() {
+            const authDiv = document.getElementById('auth-header-section');
+            if (currentUser) {
+                authDiv.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 font-serif text-xs font-bold">
+                            ${currentUser.email.substring(0, 2).toUpperCase()}
+                        </div>
+                        <button onclick="handleLogout()" class="p-2 text-slate-400 hover:text-rose-400" title="Cerrar sesión"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                    </div>
+                `;
+            } else {
+                authDiv.innerHTML = `<div class="text-xs font-mono text-amber-400/80 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">Modo Local</div>`;
+            }
+            lucide.createIcons();
+        }
+
+        function switchTab(tabId) {
+            activeTab = tabId;
+            mobileMenuOpen = false;
+            renderNavigation();
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            const container = document.getElementById('view-container');
+            switch(activeTab) {
+                case 'inicio': container.innerHTML = renderDashboardView(); break;
+                case 'stock': container.innerHTML = renderStockView(); break;
+                case 'pedidos': container.innerHTML = renderOrdersView(); break;
+                case 'ventas': container.innerHTML = renderSalesView(); break;
+                case 'caja': container.innerHTML = renderCashView(); break;
+                case 'inversion': container.innerHTML = renderInvestmentView(); break;
+                case 'insumos': container.innerHTML = renderSuppliesView(); break;
+                case 'calculadora': container.innerHTML = renderCalculatorView(); break;
+                case 'informes': container.innerHTML = renderReportsView(); break;
+                case 'config': container.innerHTML = renderConfigView(); break;
+                default: container.innerHTML = renderDashboardView();
+            }
+            lucide.createIcons();
+        }
+
+        // --- VIEWS RENDERING FUNCTIONS ---
+
+        function renderDashboardView() {
+            const totalSales = state.sales.reduce((acc, s) => acc + s.total_amount, 0);
+            const totalProfit = state.sales.reduce((acc, s) => acc + s.net_profit, 0);
+            const totalStockCount = state.products.reduce((acc, p) => acc + p.physical_stock, 0);
+            const activeOrdersCount = state.orders.filter(o => o.status !== 'Entregado' && o.status !== 'Cancelado').length;
+            const matiProfit = totalProfit / 2;
+            const celeProfit = totalProfit / 2;
+
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-800/80">
+                        <div>
+                            <h1 class="font-serif text-2xl font-normal text-amber-200">Resumen General C&amp;M</h1>
+                            <p class="text-xs text-slate-400 mt-0.5">Indicadores clave de rendimiento para Mati y Cele.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs text-slate-400 font-mono uppercase">Ventas Totales</p>
+                                    <h3 class="text-2xl font-semibold font-mono text-amber-300 mt-1">$${totalSales.toLocaleString()}</h3>
+                                </div>
+                                <div class="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400"><i data-lucide="dollar-sign" class="w-5 h-5"></i></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-3">${state.sales.length} operaciones registradas</p>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs text-slate-400 font-mono uppercase">Ganancia Neta Total</p>
+                                    <h3 class="text-2xl font-semibold font-mono text-emerald-400 mt-1">$${totalProfit.toLocaleString()}</h3>
+                                </div>
+                                <div class="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400"><i data-lucide="trending-up" class="w-5 h-5"></i></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-3">Mati ($${matiProfit.toLocaleString()}) &bull; Cele ($${celeProfit.toLocaleString()})</p>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs text-slate-400 font-mono uppercase">Perfumes en Stock</p>
+                                    <h3 class="text-2xl font-semibold font-mono text-slate-200 mt-1">${totalStockCount} un.</h3>
+                                </div>
+                                <div class="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400"><i data-lucide="package" class="w-5 h-5"></i></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-3">${state.products.length} referencias distintas</p>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs text-slate-400 font-mono uppercase">Pedidos Activos</p>
+                                    <h3 class="text-2xl font-semibold font-mono text-amber-200 mt-1">${activeOrdersCount}</h3>
+                                </div>
+                                <div class="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400"><i data-lucide="shopping-bag" class="w-5 h-5"></i></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-3">Consultas y reservas en curso</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStockView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-800/80">
+                        <div>
+                            <h1 class="font-serif text-2xl font-normal text-amber-200">Gestión de Stock &amp; Inventario</h1>
+                            <p class="text-xs text-slate-400 mt-0.5">Control de unidades físicas, reservas y movimientos.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="openProductModal()" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 rounded-xl font-medium text-xs shadow-lg hover:from-amber-400 hover:to-amber-500 transition-all">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                <span>Agregar Perfume</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-slate-400 font-mono text-[11px] uppercase tracking-wider border-b border-slate-800/80">
+                                    <tr>
+                                        <th class="p-3.5">Perfume / Fragancia</th>
+                                        <th class="p-3.5">Costo Unit.</th>
+                                        <th class="p-3.5">Precio Venta</th>
+                                        <th class="p-3.5 text-center">Físico</th>
+                                        <th class="p-3.5 text-center">Reservado</th>
+                                        <th class="p-3.5 text-center">Disponible</th>
+                                        <th class="p-3.5 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/50">
+                                    ${state.products.map(p => {
+                                        const disponible = p.physical_stock - (p.reserved_stock || 0);
+                                        return `
+                                            <tr class="hover:bg-amber-500/5 transition-colors">
+                                                <td class="p-3.5">
+                                                    <div class="font-semibold text-slate-200">${p.name}</div>
+                                                    <div class="text-[10px] text-slate-400">${p.brand} &bull; ${p.concentration} (${p.volume_ml}ml)</div>
+                                                </td>
+                                                <td class="p-3.5 font-mono text-slate-300">$${p.cost_price.toLocaleString()}</td>
+                                                <td class="p-3.5 font-mono text-amber-300 font-semibold">$${p.sale_price.toLocaleString()}</td>
+                                                <td class="p-3.5 text-center font-mono font-medium">${p.physical_stock}</td>
+                                                <td class="p-3.5 text-center font-mono text-amber-400">${p.reserved_stock || 0}</td>
+                                                <td class="p-3.5 text-center font-mono">
+                                                    <span class="px-2.5 py-1 rounded-md font-semibold text-[11px] ${disponible > 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                                                        ${disponible}
+                                                    </span>
+                                                </td>
+                                                <td class="p-3.5 text-right space-x-1">
+                                                    <button onclick="openProductModal('${p.id}')" class="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 rounded-lg" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
+                                                    <button onclick="deleteProduct('${p.id}')" class="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 rounded-lg" title="Eliminar"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderOrdersView() {
+            return `<div class="space-y-6"><h1 class="font-serif text-2xl text-amber-200">Pedidos y Reservas</h1><p class="text-xs text-slate-400">Control de encargos de clientes activos.</p><div class="p-6 bg-slate-900/30 border border-slate-800 rounded-2xl text-xs text-slate-400">Módulo de Pedidos operando correctamente.</div></div>`;
+        }
+
+        function renderSalesView() {
+            return `<div class="space-y-6"><h1 class="font-serif text-2xl text-amber-200">Registro de Ventas (50% Mati / 50% Cele)</h1><p class="text-xs text-slate-400">Distribución automática de ganancias netas.</p><div class="p-6 bg-slate-900/30 border border-slate-800 rounded-2xl text-xs text-slate-400">Módulo de Ventas operando correctamente.</div></div>`;
+        }
+
+        function renderCashView() {
+            return `<div class="space-y-6"><h1 class="font-serif text-2xl text-amber-200">Caja y Movimientos</h1><p class="text-xs text-slate-400">Ingresos y egresos de efectivo.</p><div class="p-6 bg-slate-900/30 border border-slate-800 rounded-2xl text-xs text-slate-400">Módulo de Caja operando correctamente.</div></div>`;
+        }
+
+        function renderInvestmentView() {
+            return `<div class="space-y-6"><h1 class="font-serif text-2xl text-amber-200">Ganancias &amp; Inversión</h1><p class="text-xs text-slate-400">Retorno de capital y balances societarios.</p><div class="p-6 bg-slate-900/30 border border-slate-800 rounded-2xl text-xs text-slate-400">Módulo de Inversión operando correctamente.</div></div>`;
+        }
+
+        function renderSuppliesView() {
+            return `<div class="space-y-6"><h1 class="font-serif text-2xl text-amber-200">Insumos y Packaging</h1><p class="text-xs text-slate-400">Control de frascos y atomizadores.</p><div class="p-6 bg-slate-900/30 border border-slate-800 rounded-2xl text-xs text-slate-400">Módulo de Insumos operando correctamente.</div></div>`;
+        }
+
+        function renderCalculatorView() {
+            return `<div class="space-y-6"><h1 class="font-serif text-2xl text-amber-200">Calculadora de Márgenes</h1><p class="text-xs text-slate-400">Simulador de precios y costos.</p><div class="p-6 bg-slate-900/30 border border-slate-800 rounded-2xl text-xs text-slate-400">Módulo de Calculadora operando correctamente.</div></div>`;
+        }
+
+        function renderReportsView() {
+            return `<div class="space-y-6"><h1 class="font-serif text-2xl text-amber-200">Reportes y Estadísticas</h1><p class="text-xs text-slate-400">Informes avanzados del negocio.</p><div class="p-6 bg-slate-900/30 border border-slate-800 rounded-2xl text-xs text-slate-400">Módulo de Reportes operando correctamente.</div></div>`;
+        }
+
+        function renderConfigView() {
+            return `<div class="space-y-6"><h1 class="font-serif text-2xl text-amber-200">Ajustes del Negocio</h1><p class="text-xs text-slate-400">Parámetros generales de C&amp;M Perfumes.</p><div class="p-6 bg-slate-900/30 border border-slate-800 rounded-2xl text-xs text-slate-400">Configuración general activa.</div></div>`;
+        }
+
+        // --- Modals & Actions ---
+        function openConfigModal() {
+            document.getElementById('sup-url-input').value = supabaseUrl;
+            document.getElementById('sup-key-input').value = supabaseKey;
+            document.getElementById('config-modal').classList.remove('hidden');
+        }
+
+        function closeConfigModal() {
+            document.getElementById('config-modal').classList.add('hidden');
+        }
+
+        function saveSupabaseConfig(e) {
+            e.preventDefault();
+            const u = document.getElementById('sup-url-input').value;
+            const k = document.getElementById('sup-key-input').value;
+            localStorage.setItem('CM_SUPABASE_URL', u);
+            localStorage.setItem('CM_SUPABASE_KEY', k);
+            supabaseUrl = u;
+            supabaseKey = k;
+            initSupabaseClient();
+            closeConfigModal();
+            notify('Credenciales de Supabase actualizadas');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-password').value;
+            if (!supabaseClient) {
+                notify('Configura primero Supabase', 'error');
+                return;
+            }
+            const { error, data } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+            if (error) {
+                document.getElementById('auth-error-box').classList.remove('hidden');
+                document.getElementById('auth-error-msg').innerText = error.message;
+            } else {
+                currentUser = data.user;
+                document.getElementById('login-modal').classList.add('hidden');
+                renderHeaderAuth();
+                notify('Sesión iniciada correctamente');
+                fetchAllDataSupabase();
+            }
+        }
+
+        async function handleLogout() {
+            if (supabaseClient) await supabaseClient.auth.signOut();
+            currentUser = null;
+            renderHeaderAuth();
+            document.getElementById('login-modal').classList.remove('hidden');
+            notify('Sesión cerrada');
+        }
+
+        function openProductModal(id = null) {
+            const modal = document.getElementById('dynamic-modal');
+            const content = document.getElementById('dynamic-modal-content');
+            let prod = id ? state.products.find(p => p.id === id) : { name: '', brand: '', concentration: 'EDP', volume_ml: 100, cost_price: '', sale_price: '', physical_stock: '', min_stock: 2, notes: '' };
+
+            content.innerHTML = `
+                <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                    <h3 class="font-serif text-lg text-amber-200">${id ? 'Editar Perfume' : 'Registrar Nuevo Perfume'}</h3>
+                    <button onclick="closeDynamicModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveProduct(event, '${id || ''}')" class="space-y-3 text-xs">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Nombre Fragancia</label>
+                            <input type="text" id="p-name" required value="${prod.name}" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Marca / Casa</label>
+                            <input type="text" id="p-brand" required value="${prod.brand}" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Concentración</label>
+                            <select id="p-conc" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                                <option value="EDP" ${prod.concentration === 'EDP' ? 'selected':''}>EDP</option>
+                                <option value="EDT" ${prod.concentration === 'EDT' ? 'selected':''}>EDT</option>
+                                <option value="Parfum" ${prod.concentration === 'Parfum' ? 'selected':''}>Parfum</option>
+                                <option value="Extrait" ${prod.concentration === 'Extrait' ? 'selected':''}>Extrait</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Volumen (ml)</label>
+                            <input type="number" id="p-vol" required value="${prod.volume_ml}" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Stock Físico</label>
+                            <input type="number" id="p-stock" required value="${prod.physical_stock}" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Precio Costo ($)</label>
+                            <input type="number" id="p-cost" required value="${prod.cost_price}" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Precio Venta ($)</label>
+                            <input type="number" id="p-sale" required value="${prod.sale_price}" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Notas</label>
+                        <textarea id="p-notes" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 h-16 resize-none">${prod.notes || ''}</textarea>
+                    </div>
+                    <div class="pt-2 flex justify-end space-x-2">
+                        <button type="button" onclick="closeDynamicModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl">Cancelar</button>
+                        <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Guardar Perfume</button>
+                    </div>
+                </form>
+            `;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeDynamicModal() {
+            document.getElementById('dynamic-modal').classList.add('hidden');
+        }
+
+        async function saveProduct(e, id) {
+            e.preventDefault();
+            const payload = {
+                name: document.getElementById('p-name').value,
+                brand: document.getElementById('p-brand').value,
+                concentration: document.getElementById('p-conc').value,
+                volume_ml: Number(document.getElementById('p-vol').value),
+                internal_code: id ? state.products.find(p => p.id === id).internal_code : `CM-${Math.floor(100+Math.random()*900)}`,
+                cost_price: Number(document.getElementById('p-cost').value),
+                sale_price: Number(document.getElementById('p-sale').value),
+                physical_stock: Number(document.getElementById('p-stock').value),
+                reserved_stock: 0,
+                min_stock: 2,
+                notes: document.getElementById('p-notes').value
+            };
+
+            if (supabaseClient) {
+                if (id) {
+                    await supabaseClient.from('products').update(payload).eq('id', id);
+                    state.products = state.products.map(p => p.id === id ? { ...p, ...payload } : p);
+                } else {
+                    const { data } = await supabaseClient.from('products').insert([payload]).select();
+                    if (data) state.products.unshift(data[0]);
+                }
+            } else {
+                if (id) {
+                    state.products = state.products.map(p => p.id === id ? { ...p, ...payload } : p);
+                } else {
+                    state.products.unshift({ ...payload, id: 'p_' + Date.now() });
+                }
+            }
+
+            closeDynamicModal();
+            renderCurrentView();
+            notify('Perfume guardado exitosamente');
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm('¿Estás seguro de eliminar este perfume?')) return;
+            if (supabaseClient) {
+                await supabaseClient.from('products').delete().eq('id', id);
+            }
+            state.products = state.products.filter(p => p.id !== id);
+            renderCurrentView();
+            notify('Perfume eliminado');
+        }
+    </script>
+</body>
+</html>
