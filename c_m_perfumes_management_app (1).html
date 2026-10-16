@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C&M Perfumes - Haute Parfumerie & Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(217, 119, 6, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(217, 119, 6, 0.6); }
+    </style>
+</head>
+<body class="min-h-screen bg-[#0b0d14] text-slate-100 flex flex-col transition-colors duration-200 selection:bg-amber-500 selection:text-slate-950">
+
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <header id="main-header" class="bg-[#0e111a]/95 backdrop-blur-md sticky top-0 z-30 border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-xl border bg-slate-900 border-slate-800 text-slate-300">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                </button>
+                <div class="flex items-center space-x-3.5 group cursor-pointer" onclick="switchTab('inicio')">
+                    <div class="relative w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-700 via-amber-500 to-amber-200 p-[1px] shadow-xl shadow-amber-950/30">
+                        <div class="w-full h-full rounded-[15px] flex items-center justify-center bg-[#0b0d14]">
+                            <span class="font-serif italic font-bold bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 bg-clip-text text-transparent text-sm tracking-tighter">
+                                C&amp;M
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col justify-center">
+                        <span class="font-serif text-base tracking-[0.25em] font-medium bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 bg-clip-text text-transparent uppercase leading-tight">
+                            C&amp;M Perfumes
+                        </span>
+                        <span class="text-[8px] font-mono tracking-[0.3em] uppercase mt-0.5 text-amber-500/60">
+                            Mati &amp; Cele &bull; Partner Management
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleTheme()" class="p-2 rounded-xl border bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-800 transition-colors" title="Cambiar tema">
+                    <i id="theme-icon" data-lucide="sun" class="w-4 h-4"></i>
+                </button>
+                <button onclick="openConfigModal()" class="px-3 py-1.5 rounded-xl border text-xs font-mono flex items-center space-x-1.5 transition-colors bg-amber-500/10 border-amber-500/30 text-amber-400">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                    <span id="supabase-status-text" class="hidden sm:inline">Conectar Supabase</span>
+                </button>
+                <div id="auth-header-section"></div>
+            </div>
+        </div>
+    </header>
+
+    <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="max-w-md w-full p-6 rounded-2xl border shadow-2xl space-y-4 bg-slate-900 border-slate-800">
+            <div class="text-center space-y-1">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+                    <i data-lucide="lock" class="w-5 h-5"></i>
+                </div>
+                <h2 class="font-serif text-xl font-normal text-amber-200">Acceso a C&amp;M Perfumes</h2>
+                <p class="text-xs text-slate-400">Ingresa con tu usuario registrado para sincronizar datos en vivo.</p>
+            </div>
+            <div id="auth-error-box" class="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400 flex items-center space-x-2 hidden">
+                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                <span id="auth-error-msg"></span>
+            </div>
+            <form onsubmit="handleLogin(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Correo Electrónico</label>
+                    <input type="email" id="login-email" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="mati@cmperfumes.com">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Contraseña</label>
+                    <input type="password" id="login-password" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-semibold hover:from-amber-400 hover:to-amber-500 transition-all shadow-lg">
+                    Iniciar Sesión
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col md:flex-row">
+        <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-[#090b10] border-r border-slate-800/80 text-slate-300 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out flex flex-col">
+            <div class="p-4 border-b border-slate-800/80 flex justify-between items-center md:hidden">
+                <span class="font-serif text-sm tracking-widest text-amber-200 uppercase">Menú C&amp;M</span>
+                <button onclick="toggleMobileMenu()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <nav id="nav-menu" class="flex-1 px-3 py-4 space-y-1 overflow-y-auto"></nav>
+            <div class="p-4 border-t border-slate-800/80 text-[11px] text-slate-500 text-center font-mono">
+                C&amp;M Perfumes &bull; v2.7 HTML Pro
+            </div>
+        </aside>
+
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+            <div id="view-container"></div>
+        </main>
+    </div>
+
+    <div id="config-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="max-w-md w-full p-6 rounded-2xl border shadow-2xl space-y-4 bg-slate-900 border-slate-800">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="font-serif text-lg text-amber-200">Configuración Supabase</h3>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="saveSupabaseConfig(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Supabase URL</label>
+                    <input type="text" id="sup-url-input" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono" placeholder="https://xyz.supabase.co">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Supabase Anon Key</label>
+                    <input type="password" id="sup-key-input" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono" placeholder="eyJhbGciOi...">
+                </div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Guardar Conexión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="dynamic-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div id="dynamic-modal-content" class="max-w-xl w-full p-6 rounded-2xl border shadow-2xl space-y-4 bg-slate-900 border-slate-800 max-h-[90vh] overflow-y-auto"></div>
+    </div>
+
+    <script>
+        let theme = localStorage.getItem('CM_THEME') || 'dark';
+        let activeTab = 'inicio';
+        let mobileMenuOpen = false;
+
+        let supabaseUrl = localStorage.getItem('CM_SUPABASE_URL') || '';
+        let supabaseKey = localStorage.getItem('CM_SUPABASE_KEY') || '';
+        let supabaseClient = null;
+        let currentUser = null;
+
+        let state = {
+            products: [
+                { id: 'p1', name: 'Sauvage', brand: 'Dior', concentration: 'EDP', volume_ml: 100, internal_code: 'CM-101', cost_price: 45000, sale_price: 98000, physical_stock: 8, reserved_stock: 2, min_stock: 2, notes: 'Batch 2025' },
+                { id: 'p2', name: 'Bleu de Chanel', brand: 'Chanel', concentration: 'EDP', volume_ml: 100, internal_code: 'CM-102', cost_price: 52000, sale_price: 115000, physical_stock: 5, reserved_stock: 1, min_stock: 2, notes: 'Excelente salida' },
+                { id: 'p3', name: 'Baccarat Rouge 540', brand: 'Maison Francis Kurkdjian', concentration: 'Extrait', volume_ml: 70, internal_code: 'CM-103', cost_price: 75000, sale_price: 165000, physical_stock: 3, reserved_stock: 0, min_stock: 1, notes: 'Alta demanda' }
+            ],
+            inventoryMovements: [
+                { id: 'm1', product_id: 'p1', type: 'COMPRA', quantity: 10, reason: 'Ingreso inicial por reposición', user_email: 'mati@cmperfumes.com' }
+            ],
+            orders: [
+                { id: 'o1', client_name: 'Lucía Gómez', client_phone: '+5491123456789', product_id: 'p1', product_name: 'Dior Sauvage EDP', quantity: 1, agreed_price: 98000, status: 'Reservado', payment_status: 'Seña Pagada', paid_amount: 30000, pending_amount: 68000, notes: 'Retira el viernes' }
+            ],
+            sales: [
+                { id: 's1', operation_number: 1001, client_name: 'Carlos Ruiz', total_amount: 115000, total_cost: 52000, estimated_margin: 63000, net_profit: 63000, mati_profit: 31500, cele_profit: 31500, payment_status: 'Cobrado', delivery_status: 'Entregado', payment_method: 'Transferencia', paid_amount: 115000, pending_amount: 0, items: [{ product_id: 'p2', product_name: 'Bleu de Chanel EDP', quantity: 1, unit_price: 115000, unit_cost: 52000 }] }
+            ],
+            cashMovements: [
+                { id: 'c1', type: 'INGRESO', category: 'Venta', description: 'Venta #1001 Carlos Ruiz', amount: 115000, payment_method: 'Transferencia', date: '2026-10-15' }
+            ],
+            supplies: [
+                { id: 'sup1', name: 'Frascos 100ml Cristal', unit: 'Unidades', quantity: 45, min_stock: 15, unit_cost: 1800 },
+                { id: 'sup2', name: 'Atomizadores Negro/Plata', unit: 'Unidades', quantity: 60, min_stock: 20, unit_cost: 600 }
+            ],
+            debts: [
+                { id: 'd1', concept: 'Capital Inicial Préstamo Reposición', initial_amount: 220000, current_amount: 120000, status: 'En Pago' }
+            ]
+        };
+
+        const navItems = [
+            { id: 'inicio', label: 'Resumen General', icon: 'layout-dashboard' },
+            { id: 'stock', label: 'Stock & Inventario', icon: 'package' },
+            { id: 'pedidos', label: 'Pedidos y Reservas', icon: 'shopping-bag' },
+            { id: 'ventas', label: 'Ventas (Mati & Cele)', icon: 'shopping-cart' },
+            { id: 'caja', label: 'Caja y Movimientos', icon: 'wallet' },
+            { id: 'inversion', label: 'Ganancias & Inversión', icon: 'users' },
+            { id: 'insumos', label: 'Insumos y Packaging', icon: 'box' },
+            { id: 'calculadora', label: 'Calculadora de Margen', icon: 'calculator' },
+            { id: 'informes', label: 'Reportes y Datos', icon: 'file-text' },
+            { id: 'config', label: 'Ajustes', icon: 'settings' }
+        ];
+
+        window.onload = function() {
+            applyTheme();
+            initSupabaseClient();
+            renderNavigation();
+            renderHeaderAuth();
+            switchTab('inicio');
+            lucide.createIcons();
+        };
+
+        function initSupabaseClient() {
+            if (supabaseUrl && supabaseKey && window.supabase) {
+                try {
+                    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+                    document.getElementById('supabase-status-text').innerText = 'Supabase Conectado';
+                    checkSupabaseSession();
+                } catch(e) {
+                    console.error('Supabase init error', e);
+                }
+            } else {
+                document.getElementById('supabase-status-text').innerText = 'Conectar Supabase';
+            }
+        }
+
+        async function checkSupabaseSession() {
+            if (!supabaseClient) return;
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.user) {
+                currentUser = session.user;
+                renderHeaderAuth();
+                fetchAllDataSupabase();
+            } else {
+                document.getElementById('login-modal').classList.remove('hidden');
+            }
+        }
+
+        async function fetchAllDataSupabase() {
+            if (!supabaseClient) return;
+            try {
+                const { data: prod } = await supabaseClient.from('products').select('*');
+                if (prod && prod.length > 0) state.products = prod;
+                const { data: ord } = await supabaseClient.from('orders').select('*');
+                if (ord && ord.length > 0) state.orders = ord;
+                const { data: sal } = await supabaseClient.from('sales').select('*');
+                if (sal && sal.length > 0) state.sales = sal;
+                renderCurrentView();
+            } catch(e) {
+                console.error('Error fetching Supabase data:', e);
+            }
+        }
+
+        function notify(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-2xl border text-white flex items-center space-x-3 backdrop-blur-md transition-all transform translate-y-2 opacity-0 ${
+                type === 'success' ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200' : 'bg-rose-950/90 border-rose-500/50 text-rose-200'
+            }`;
+            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle-2' : 'alert-triangle'}" class="w-4 h-4 ${type === 'success' ? 'text-emerald-400' : 'text-rose-400'}"></i><span class="font-medium text-sm tracking-wide">${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function toggleTheme() {
+            theme = theme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('CM_THEME', theme);
+            applyTheme();
+        }
+
+        function applyTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                if(icon) icon.setAttribute('data-lucide', 'sun');
+            } else {
+                html.classList.remove('dark');
+                if(icon) icon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+
+        function toggleMobileMenu() {
+            mobileMenuOpen = !mobileMenuOpen;
+            const sidebar = document.getElementById('sidebar');
+            if (mobileMenuOpen) {
+                sidebar.classList.remove('-translate-x-full');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+            }
+        }
+
+        function renderNavigation() {
+            const nav = document.getElementById('nav-menu');
+            nav.innerHTML = navItems.map(item => {
+                const isActive = activeTab === item.id;
+                return `
+                    <button onclick="switchTab('${item.id}')" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                        isActive 
+                            ? 'bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30 text-amber-300 font-semibold' 
+                            : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200'
+                    }">
+                        <i data-lucide="${item.icon}" class="w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400'}"></i>
+                        <span>${item.label}</span>
+                    </button>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function renderHeaderAuth() {
+            const authDiv = document.getElementById('auth-header-section');
+            if (currentUser) {
+                authDiv.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 font-serif text-xs font-bold">
+                            ${currentUser.email.substring(0, 2).toUpperCase()}
+                        </div>
+                        <button onclick="handleLogout()" class="p-2 text-slate-400 hover:text-rose-400" title="Cerrar sesión"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                    </div>
+                `;
+            } else {
+                authDiv.innerHTML = `<div class="text-xs font-mono text-amber-400/80 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">Modo Local</div>`;
+            }
+            lucide.createIcons();
+        }
+
+        function switchTab(tabId) {
+            activeTab = tabId;
+            mobileMenuOpen = false;
+            renderNavigation();
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            const container = document.getElementById('view-container');
+            switch(activeTab) {
+                case 'inicio': container.innerHTML = renderDashboardView(); break;
+                case 'stock': container.innerHTML = renderStockView(); break;
+                case 'pedidos': container.innerHTML = renderOrdersView(); break;
+                case 'ventas': container.innerHTML = renderSalesView(); break;
+                case 'caja': container.innerHTML = renderCashView(); break;
+                case 'inversion': container.innerHTML = renderInvestmentView(); break;
+                case 'insumos': container.innerHTML = renderSuppliesView(); break;
+                case 'calculadora': container.innerHTML = renderCalculatorView(); break;
+                case 'informes': container.innerHTML = renderReportsView(); break;
+                case 'config': container.innerHTML = renderConfigView(); break;
+                default: container.innerHTML = renderDashboardView();
+            }
+            lucide.createIcons();
+        }
+
+        function renderDashboardView() {
+            const totalSales = state.sales.reduce((acc, s) => acc + s.total_amount, 0);
+            const totalProfit = state.sales.reduce((acc, s) => acc + s.net_profit, 0);
+            const totalStockCount = state.products.reduce((acc, p) => acc + p.physical_stock, 0);
+            const activeOrdersCount = state.orders.filter(o => o.status !== 'Entregado' && o.status !== 'Cancelado').length;
+            const matiProfit = totalProfit / 2;
+            const celeProfit = totalProfit / 2;
+
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-800/80">
+                        <div>
+                            <h1 class="font-serif text-2xl font-normal text-amber-200">Resumen General C&amp;M</h1>
+                            <p class="text-xs text-slate-400 mt-0.5">Indicadores clave de rendimiento para Mati y Cele.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs text-slate-400 font-mono uppercase">Ventas Totales</p>
+                                    <h3 class="text-2xl font-semibold font-mono text-amber-300 mt-1">$${totalSales.toLocaleString()}</h3>
+                                </div>
+                                <div class="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400"><i data-lucide="dollar-sign" class="w-5 h-5"></i></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-3">${state.sales.length} operaciones registradas</p>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs text-slate-400 font-mono uppercase">Ganancia Neta Total</p>
+                                    <h3 class="text-2xl font-semibold font-mono text-emerald-400 mt-1">$${totalProfit.toLocaleString()}</h3>
+                                </div>
+                                <div class="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400"><i data-lucide="trending-up" class="w-5 h-5"></i></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-3">Mati ($${matiProfit.toLocaleString()}) &bull; Cele ($${celeProfit.toLocaleString()})</p>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs text-slate-400 font-mono uppercase">Perfumes en Stock</p>
+                                    <h3 class="text-2xl font-semibold font-mono text-slate-200 mt-1">${totalStockCount} un.</h3>
+                                </div>
+                                <div class="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400"><i data-lucide="package" class="w-5 h-5"></i></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-3">${state.products.length} referencias distintas</p>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs text-slate-400 font-mono uppercase">Pedidos Activos</p>
+                                    <h3 class="text-2xl font-semibold font-mono text-amber-200 mt-1">${activeOrdersCount}</h3>
+                                </div>
+                                <div class="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400"><i data-lucide="shopping-bag" class="w-5 h-5"></i></div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-3">Consultas y reservas en curso</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStockView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-800/80">
+                        <div>
+                            <h1 class="font-serif text-2xl font-normal text-amber-200">Gestión de Stock &amp; Inventario</h1>
+                            <p class="text-xs text-slate-400 mt-0.5">Control de unidades físicas, reservas y movimientos.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="openProductModal()" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 rounded-xl font-medium text-xs shadow-lg hover:from-amber-400 hover:to-amber-500 transition-all">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                <span>Agregar Perfume</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-slate-400 font-mono text-[10px] uppercase tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-3.5">Código / Perfume</th>
+                                        <th class="p-3.5">Marca</th>
+                                        <th class="p-3.5">Concentración</th>
+                                        <th class="p-3.5">Costo Unit.</th>
+                                        <th class="p-3.5">Precio Venta</th>
+                                        <th class="p-3.5">Físico</th>
+                                        <th class="p-3.5">Reservado</th>
+                                        <th class="p-3.5 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60">
+                                    ${state.products.map(p => `
+                                        <tr class="hover:bg-slate-800/20 transition-colors">
+                                            <td class="p-3.5">
+                                                <div class="font-medium text-slate-200">${p.name}</div>
+                                                <div class="font-mono text-[10px] text-amber-500/70">${p.internal_code} &bull; ${p.volume_ml}ml</div>
+                                            </td>
+                                            <td class="p-3.5 text-slate-300">${p.brand}</td>
+                                            <td class="p-3.5 font-mono text-[11px] text-slate-400">${p.concentration}</td>
+                                            <td class="p-3.5 font-mono text-slate-300">$${p.cost_price.toLocaleString()}</td>
+                                            <td class="p-3.5 font-mono text-amber-300 font-medium">$${p.sale_price.toLocaleString()}</td>
+                                            <td class="p-3.5 font-mono ${p.physical_stock <= p.min_stock ? 'text-rose-400 font-bold' : 'text-slate-200'}">${p.physical_stock} un.</td>
+                                            <td class="p-3.5 font-mono text-slate-400">${p.reserved_stock} un.</td>
+                                            <td class="p-3.5 text-right space-x-1">
+                                                <button onclick="openStockMoveModal('${p.id}')" class="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-[11px]">Movimiento</button>
+                                                <button onclick="deleteProduct('${p.id}')" class="p-1 rounded-lg text-slate-500 hover:text-rose-400" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderOrdersView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-800/80">
+                        <div>
+                            <h1 class="font-serif text-2xl font-normal text-amber-200">Pedidos &amp; Reservas</h1>
+                            <p class="text-xs text-slate-400 mt-0.5">Control de encargos, señas de clientes y entregas pendientes.</p>
+                        </div>
+                        <button onclick="openOrderModal()" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 rounded-xl font-medium text-xs shadow-lg hover:from-amber-400 hover:to-amber-500 transition-all">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Nuevo Pedido</span>
+                        </button>
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-slate-400 font-mono text-[10px] uppercase tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-3.5">Cliente</th>
+                                        <th class="p-3.5">Perfume &amp; Cantidad</th>
+                                        <th class="p-3.5">Total Acordado</th>
+                                        <th class="p-3.5">Estado Pedido</th>
+                                        <th class="p-3.5">Estado Pago</th>
+                                        <th class="p-3.5 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60">
+                                    ${state.orders.map(o => `
+                                        <tr class="hover:bg-slate-800/20 transition-colors">
+                                            <td class="p-3.5">
+                                                <div class="font-medium text-slate-200">${o.client_name}</div>
+                                                <div class="text-[11px] text-slate-400">${o.client_phone}</div>
+                                            </td>
+                                            <td class="p-3.5">
+                                                <div class="text-slate-200">${o.product_name}</div>
+                                                <div class="font-mono text-[10px] text-amber-500/70">Cant: ${o.quantity}</div>
+                                            </td>
+                                            <td class="p-3.5 font-mono text-amber-300">$${o.agreed_price.toLocaleString()}</td>
+                                            <td class="p-3.5">
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-mono border ${
+                                                    o.status === 'Entregado' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+                                                    o.status === 'Reservado' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+                                                    'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                                                }">${o.status}</span>
+                                            </td>
+                                            <td class="p-3.5 font-mono text-slate-300">${o.payment_status} ($${o.pending_amount.toLocaleString()} pendiente)</td>
+                                            <td class="p-3.5 text-right space-x-1">
+                                                <button onclick="convertToSale('${o.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-[11px]">Convertir Venta</button>
+                                                <button onclick="deleteOrder('${o.id}')" class="p-1 rounded-lg text-slate-500 hover:text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSalesView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-800/80">
+                        <div>
+                            <h1 class="font-serif text-2xl font-normal text-amber-200">Ventas &amp; Distribución (Mati &amp; Cele)</h1>
+                            <p class="text-xs text-slate-400 mt-0.5">Registro de operaciones comerciales y división equitativa de ganancias.</p>
+                        </div>
+                        <button onclick="openSaleModal()" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 rounded-xl font-medium text-xs shadow-lg hover:from-amber-400 hover:to-amber-500 transition-all">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Registrar Venta</span>
+                        </button>
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-slate-400 font-mono text-[10px] uppercase tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-3.5"># Op</th>
+                                        <th class="p-3.5">Cliente</th>
+                                        <th class="p-3.5">Total Venta</th>
+                                        <th class="p-3.5">Ganancia Neta</th>
+                                        <th class="p-3.5">Mati (50%)</th>
+                                        <th class="p-3.5">Cele (50%)</th>
+                                        <th class="p-3.5 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60">
+                                    ${state.sales.map(s => `
+                                        <tr class="hover:bg-slate-800/20 transition-colors">
+                                            <td class="p-3.5 font-mono text-amber-400">#${s.operation_number}</td>
+                                            <td class="p-3.5 font-medium text-slate-200">${s.client_name}</td>
+                                            <td class="p-3.5 font-mono text-slate-200">$${s.total_amount.toLocaleString()}</td>
+                                            <td class="p-3.5 font-mono text-emerald-400 font-medium">$${s.net_profit.toLocaleString()}</td>
+                                            <td class="p-3.5 font-mono text-amber-300">$${s.mati_profit.toLocaleString()}</td>
+                                            <td class="p-3.5 font-mono text-amber-300">$${s.cele_profit.toLocaleString()}</td>
+                                            <td class="p-3.5 text-right space-x-1">
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 mr-2">${s.payment_status}</span>
+                                                <button onclick="deleteSale('${s.id}')" class="p-1 rounded-lg text-slate-500 hover:text-rose-400" title="Eliminar Venta"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCashView() {
+            const totalIngresos = state.cashMovements.filter(c => c.type === 'INGRESO').reduce((acc, c) => acc + c.amount, 0);
+            const totalEgresos = state.cashMovements.filter(c => c.type === 'EGRESO').reduce((acc, c) => acc + c.amount, 0);
+            const saldoCaja = totalIngresos - totalEgresos;
+
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-800/80">
+                        <div>
+                            <h1 class="font-serif text-2xl font-normal text-amber-200">Caja &amp; Movimientos</h1>
+                            <p class="text-xs text-slate-400 mt-0.5">Control de ingresos, egresos y efectivo disponible.</p>
+                        </div>
+                        <button onclick="openCashModal()" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 rounded-xl font-medium text-xs shadow-lg hover:from-amber-400 hover:to-amber-500 transition-all">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Nuevo Movimiento</span>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl">
+                            <span class="text-xs text-slate-400 font-mono uppercase">Total Ingresos</span>
+                            <h3 class="text-xl font-semibold font-mono text-emerald-400 mt-1">$${totalIngresos.toLocaleString()}</h3>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl">
+                            <span class="text-xs text-slate-400 font-mono uppercase">Total Egresos</span>
+                            <h3 class="text-xl font-semibold font-mono text-rose-400 mt-1">$${totalEgresos.toLocaleString()}</h3>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl">
+                            <span class="text-xs text-slate-400 font-mono uppercase">Saldo en Caja</span>
+                            <h3 class="text-xl font-semibold font-mono text-amber-300 mt-1">$${saldoCaja.toLocaleString()}</h3>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-slate-400 font-mono text-[10px] uppercase tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-3.5">Fecha</th>
+                                        <th class="p-3.5">Tipo</th>
+                                        <th class="p-3.5">Categoría</th>
+                                        <th class="p-3.5">Descripción</th>
+                                        <th class="p-3.5">Medio</th>
+                                        <th class="p-3.5 text-right">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60">
+                                    ${state.cashMovements.map(c => `
+                                        <tr class="hover:bg-slate-800/20 transition-colors">
+                                            <td class="p-3.5 font-mono text-slate-400">${c.date}</td>
+                                            <td class="p-3.5">
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-mono ${c.type === 'INGRESO' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">${c.type}</span>
+                                            </td>
+                                            <td class="p-3.5 text-slate-300">${c.category}</td>
+                                            <td class="p-3.5 text-slate-200">${c.description}</td>
+                                            <td class="p-3.5 text-slate-400 font-mono text-[11px]">${c.payment_method}</td>
+                                            <td class="p-3.5 text-right font-mono ${c.type === 'INGRESO' ? 'text-emerald-400' : 'text-rose-400'}">$${c.amount.toLocaleString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderInvestmentView() {
+            const totalProfit = state.sales.reduce((acc, s) => acc + s.net_profit, 0);
+            const matiProfit = totalProfit / 2;
+            const celeProfit = totalProfit / 2;
+
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-800/80">
+                        <div>
+                            <h1 class="font-serif text-2xl font-normal text-amber-200">Ganancias &amp; Inversión Socios</h1>
+                            <p class="text-xs text-slate-400 mt-0.5">Control de cuentas corrientes y distribución 50/50 entre Mati y Cele.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl space-y-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-serif font-bold">M</div>
+                                <div>
+                                    <h3 class="font-serif text-lg text-slate-100">Mati (Socio Co-fundador)</h3>
+                                    <p class="text-xs text-slate-400 font-mono">Participación: 50%</p>
+                                </div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-slate-400">Ganancias Acumuladas:</span>
+                                    <span class="font-mono text-amber-300 font-semibold">$${matiProfit.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl space-y-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-serif font-bold">C</div>
+                                <div>
+                                    <h3 class="font-serif text-lg text-slate-100">Cele (Socio Co-fundador)</h3>
+                                    <p class="text-xs text-slate-400 font-mono">Participación: 50%</p>
+                                </div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-slate-400">Ganancias Acumuladas:</span>
+                                    <span class="font-mono text-amber-300 font-semibold">$${celeProfit.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSuppliesView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-800/80">
+                        <div>
+                            <h1 class="font-serif text-2xl font-normal text-amber-200">Insumos &amp; Packaging</h1>
+                            <p class="text-xs text-slate-400 mt-0.5">Control de frascos, atomizadores, etiquetas y cajas.</p>
+                        </div>
+                        <button onclick="openSupplyModal()" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 rounded-xl font-medium text-xs shadow-lg hover:from-amber-400 hover:to-amber-500 transition-all">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Agregar Insumo</span>
+                        </button>
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-slate-400 font-mono text-[10px] uppercase tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-3.5">Insumo</th>
+                                        <th class="p-3.5">Unidad</th>
+                                        <th class="p-3.5">Stock Actual</th>
+                                        <th class="p-3.5">Costo Unit.</th>
+                                        <th class="p-3.5 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60">
+                                    ${state.supplies.map(sup => `
+                                        <tr class="hover:bg-slate-800/20 transition-colors">
+                                            <td class="p-3.5 font-medium text-slate-200">${sup.name}</td>
+                                            <td class="p-3.5 text-slate-400">${sup.unit}</td>
+                                            <td class="p-3.5 font-mono ${sup.quantity <= sup.min_stock ? 'text-rose-400 font-bold' : 'text-slate-200'}">${sup.quantity}</td>
+                                            <td class="p-3.5 font-mono text-slate-300">$${sup.unit_cost.toLocaleString()}</td>
+                                            <td class="p-3.5 text-right">
+                                                <button onclick="deleteSupply('${sup.id}')" class="p-1 rounded-lg text-slate-500 hover:text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCalculatorView() {
+            return `
+                <div class="space-y-6 max-w-2xl mx-auto">
+                    <div class="pb-2 border-b border-slate-800/80">
+                        <h1 class="font-serif text-2xl font-normal text-amber-200">Calculadora de Márgenes &amp; Costos</h1>
+                        <p class="text-xs text-slate-400 mt-0.5">Calcula con precisión el costo de frascos, esencia y empaque para fijar tu precio de venta.</p>
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl space-y-4 text-xs">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-slate-400 block mb-1">Costo Esencia / Aceite</label>
+                                <input type="number" id="calc-essence" value="15000" oninput="calculateMargin()" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Costo Frasco + Atomizador</label>
+                                <input type="number" id="calc-bottle" value="2500" oninput="calculateMargin()" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Costo Packaging / Etiquetas</label>
+                                <input type="number" id="calc-packaging" value="1000" oninput="calculateMargin()" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Margen Deseado (%)</label>
+                                <input type="number" id="calc-margin" value="100" oninput="calculateMargin()" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                            </div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 mt-4 font-mono">
+                            <div class="flex justify-between text-slate-400">
+                                <span>Costo Total de Producción:</span>
+                                <span id="res-total-cost" class="text-slate-200">$18,500</span>
+                            </div>
+                            <div class="flex justify-between text-amber-300 font-semibold text-sm pt-2 border-t border-slate-800">
+                                <span>Precio Sugerido de Venta:</span>
+                                <span id="res-suggested-price">$37,000</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function calculateMargin() {
+            const essence = parseFloat(document.getElementById('calc-essence').value) || 0;
+            const bottle = parseFloat(document.getElementById('calc-bottle').value) || 0;
+            const packaging = parseFloat(document.getElementById('calc-packaging').value) || 0;
+            const margin = parseFloat(document.getElementById('calc-margin').value) || 0;
+
+            const totalCost = essence + bottle + packaging;
+            const suggestedPrice = totalCost * (1 + margin / 100);
+
+            document.getElementById('res-total-cost').innerText = `$${totalCost.toLocaleString()}`;
+            document.getElementById('res-suggested-price').innerText = `$${suggestedPrice.toLocaleString()}`;
+        }
+
+        function renderReportsView() {
+            return `
+                <div class="space-y-6 max-w-2xl mx-auto">
+                    <div class="pb-2 border-b border-slate-800/80">
+                        <h1 class="font-serif text-2xl font-normal text-amber-200">Reportes &amp; Datos</h1>
+                        <p class="text-xs text-slate-400 mt-0.5">Exportación de respaldos y reportes operativos.</p>
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl space-y-4 text-xs">
+                        <p class="text-slate-300">Descarga un respaldo completo en JSON de todo el inventario, ventas y pedidos de C&amp;M Perfumes.</p>
+                        <button onclick="exportJSON()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl flex items-center space-x-2">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            <span>Descargar Respaldo JSON</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `CM_Perfumes_Backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            notify('Respaldo exportado correctamente.');
+        }
+
+        function renderConfigView() {
+            return `
+                <div class="space-y-6 max-w-2xl mx-auto">
+                    <div class="pb-2 border-b border-slate-800/80">
+                        <h1 class="font-serif text-2xl font-normal text-amber-200">Ajustes &amp; Base de Datos</h1>
+                        <p class="text-xs text-slate-400 mt-0.5">Configuración de credenciales de Supabase y parámetros del sistema.</p>
+                    </div>
+                    <div class="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl space-y-4 text-xs">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Supabase URL</label>
+                            <input type="text" id="cfg-url" value="${supabaseUrl}" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Supabase Anon Key</label>
+                            <input type="password" id="cfg-key" value="${supabaseKey}" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                        <button onclick="saveConfigFromView()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Guardar Ajustes</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function saveConfigFromView() {
+            supabaseUrl = document.getElementById('cfg-url').value;
+            supabaseKey = document.getElementById('cfg-key').value;
+            localStorage.setItem('CM_SUPABASE_URL', supabaseUrl);
+            localStorage.setItem('CM_SUPABASE_KEY', supabaseKey);
+            initSupabaseClient();
+            notify('Configuración guardada exitosamente.');
+        }
+
+        function openConfigModal() {
+            document.getElementById('sup-url-input').value = supabaseUrl;
+            document.getElementById('sup-key-input').value = supabaseKey;
+            document.getElementById('config-modal').classList.remove('hidden');
+        }
+
+        function closeConfigModal() {
+            document.getElementById('config-modal').classList.add('hidden');
+        }
+
+        function saveSupabaseConfig(e) {
+            e.preventDefault();
+            supabaseUrl = document.getElementById('sup-url-input').value;
+            supabaseKey = document.getElementById('sup-key-input').value;
+            localStorage.setItem('CM_SUPABASE_URL', supabaseUrl);
+            localStorage.setItem('CM_SUPABASE_KEY', supabaseKey);
+            closeConfigModal();
+            initSupabaseClient();
+            notify('Conexión actualizada.');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-password').value;
+            if (supabaseClient) {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+                if (error) {
+                    document.getElementById('auth-error-box').classList.remove('hidden');
+                    document.getElementById('auth-error-msg').innerText = error.message;
+                } else {
+                    currentUser = data.user;
+                    document.getElementById('login-modal').classList.add('hidden');
+                    renderHeaderAuth();
+                    fetchAllDataSupabase();
+                    notify('Sesión iniciada correctamente.');
+                }
+            } else {
+                currentUser = { email };
+                document.getElementById('login-modal').classList.add('hidden');
+                renderHeaderAuth();
+                notify('Modo local autenticado como ' + email);
+            }
+        }
+
+        async function handleLogout() {
+            if (supabaseClient) {
+                await supabaseClient.auth.signOut();
+            }
+            currentUser = null;
+            renderHeaderAuth();
+            document.getElementById('login-modal').classList.remove('hidden');
+            notify('Sesión cerrada.');
+        }
+
+        function openProductModal() {
+            const modal = document.getElementById('dynamic-modal');
+            const content = document.getElementById('dynamic-modal-content');
+            content.innerHTML = `
+                <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                    <h3 class="font-serif text-lg text-amber-200">Agregar Nuevo Perfume</h3>
+                    <button onclick="closeDynamicModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveProduct(event)" class="space-y-3 text-xs">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Nombre</label>
+                            <input type="text" id="p-name" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200" placeholder="Sauvage">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Marca</label>
+                            <input type="text" id="p-brand" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200" placeholder="Dior">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Concentración</label>
+                            <input type="text" id="p-conc" value="EDP" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Volumen (ml)</label>
+                            <input type="number" id="p-vol" value="100" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Código Int.</label>
+                            <input type="text" id="p-code" value="CM-104" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Costo Unitario ($)</label>
+                            <input type="number" id="p-cost" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono" placeholder="45000">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Precio de Venta ($)</label>
+                            <input type="number" id="p-price" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono" placeholder="98000">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Stock Físico Inicial</label>
+                            <input type="number" id="p-stock" value="5" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Stock Mínimo Alerta</label>
+                            <input type="number" id="p-min" value="2" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                    </div>
+                    <div class="pt-2 flex justify-end space-x-2">
+                        <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Guardar Perfume</button>
+                    </div>
+                </form>
+            `;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function saveProduct(e) {
+            e.preventDefault();
+            const newProd = {
+                id: 'p_' + Date.now(),
+                name: document.getElementById('p-name').value,
+                brand: document.getElementById('p-brand').value,
+                concentration: document.getElementById('p-conc').value,
+                volume_ml: parseInt(document.getElementById('p-vol').value),
+                internal_code: document.getElementById('p-code').value,
+                cost_price: parseFloat(document.getElementById('p-cost').value),
+                sale_price: parseFloat(document.getElementById('p-price').value),
+                physical_stock: parseInt(document.getElementById('p-stock').value),
+                reserved_stock: 0,
+                min_stock: parseInt(document.getElementById('p-min').value),
+                notes: ''
+            };
+            state.products.push(newProd);
+            closeDynamicModal();
+            renderCurrentView();
+            notify('Perfume agregado correctamente.');
+        }
+
+        function deleteProduct(id) {
+            state.products = state.products.filter(p => p.id !== id);
+            renderCurrentView();
+            notify('Perfume eliminado.', 'error');
+        }
+
+        function openOrderModal() {
+            const modal = document.getElementById('dynamic-modal');
+            const content = document.getElementById('dynamic-modal-content');
+            content.innerHTML = `
+                <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                    <h3 class="font-serif text-lg text-amber-200">Nuevo Pedido / Reserva</h3>
+                    <button onclick="closeDynamicModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveOrder(event)" class="space-y-3 text-xs">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Nombre Cliente</label>
+                            <input type="text" id="o-client" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200" placeholder="Lucía Gómez">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Teléfono</label>
+                            <input type="text" id="o-phone" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200" placeholder="+54911...">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Seleccionar Perfume</label>
+                        <select id="o-prod" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                            ${state.products.map(p => `<option value="${p.id}">${p.brand} - ${p.name} ($${p.sale_price.toLocaleString()})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Cantidad</label>
+                            <input type="number" id="o-qty" value="1" min="1" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Seña Abonada ($)</label>
+                            <input type="number" id="o-paid" value="0" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Registrar Pedido</button>
+                </form>
+            `;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function saveOrder(e) {
+            e.preventDefault();
+            const prodId = document.getElementById('o-prod').value;
+            const prod = state.products.find(p => p.id === prodId);
+            const qty = parseInt(document.getElementById('o-qty').value);
+            const paid = parseFloat(document.getElementById('o-paid').value) || 0;
+            const agreed = prod ? prod.sale_price * qty : 0;
+
+            const newOrder = {
+                id: 'o_' + Date.now(),
+                client_name: document.getElementById('o-client').value,
+                client_phone: document.getElementById('o-phone').value,
+                product_id: prodId,
+                product_name: prod ? `${prod.brand} ${prod.name}` : 'Perfume',
+                quantity: qty,
+                agreed_price: agreed,
+                status: 'Reservado',
+                payment_status: paid > 0 ? 'Seña Pagada' : 'Pendiente',
+                paid_amount: paid,
+                pending_amount: agreed - paid,
+                notes: ''
+            };
+
+            state.orders.push(newOrder);
+            if (prod) {
+                prod.reserved_stock += qty;
+            }
+            closeDynamicModal();
+            renderCurrentView();
+            notify('Pedido registrado con éxito.');
+        }
+
+        function deleteOrder(id) {
+            state.orders = state.orders.filter(o => o.id !== id);
+            renderCurrentView();
+            notify('Pedido eliminado.', 'error');
+        }
+
+        function convertToSale(id) {
+            const ord = state.orders.find(o => o.id === id);
+            if (!ord) return;
+            const prod = state.products.find(p => p.id === ord.product_id);
+            const cost = prod ? prod.cost_price * ord.quantity : 0;
+            const profit = ord.agreed_price - cost;
+
+            const newSale = {
+                id: 's_' + Date.now(),
+                operation_number: 1000 + state.sales.length + 1,
+                client_name: ord.client_name,
+                total_amount: ord.agreed_price,
+                total_cost: cost,
+                estimated_margin: profit,
+                net_profit: profit,
+                mati_profit: profit / 2,
+                cele_profit: profit / 2,
+                payment_status: 'Cobrado',
+                delivery_status: 'Entregado',
+                payment_method: 'Transferencia',
+                paid_amount: ord.agreed_price,
+                pending_amount: 0,
+                items: [{ product_id: ord.product_id, product_name: ord.product_name, quantity: ord.quantity, unit_price: ord.agreed_price / ord.quantity, unit_cost: cost / ord.quantity }]
+            };
+
+            state.sales.push(newSale);
+            state.cashMovements.push({
+                id: 'c_' + Date.now(),
+                type: 'INGRESO',
+                category: 'Venta',
+                description: `Venta #${newSale.operation_number} ${ord.client_name}`,
+                amount: ord.agreed_price,
+                payment_method: 'Transferencia',
+                date: new Date().toISOString().slice(0, 10)
+            });
+
+            if (prod) {
+                prod.physical_stock = Math.max(0, prod.physical_stock - ord.quantity);
+                prod.reserved_stock = Math.max(0, prod.reserved_stock - ord.quantity);
+            }
+
+            state.orders = state.orders.filter(o => o.id !== id);
+            renderCurrentView();
+            notify('¡Pedido convertido en Venta con éxito!');
+        }
+
+        function openSaleModal() {
+            const modal = document.getElementById('dynamic-modal');
+            const content = document.getElementById('dynamic-modal-content');
+            content.innerHTML = `
+                <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                    <h3 class="font-serif text-lg text-amber-200">Registrar Venta Directa</h3>
+                    <button onclick="closeDynamicModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveSaleDirect(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Nombre Cliente</label>
+                        <input type="text" id="s-client" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200" placeholder="Carlos Ruiz">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Seleccionar Perfume</label>
+                        <select id="s-prod" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                            ${state.products.map(p => `<option value="${p.id}">${p.brand} - ${p.name} ($${p.sale_price.toLocaleString()})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Cantidad</label>
+                        <input type="number" id="s-qty" value="1" min="1" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                    </div>
+                    <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Registrar Venta</button>
+                </form>
+            `;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function saveSaleDirect(e) {
+            e.preventDefault();
+            const prodId = document.getElementById('s-prod').value;
+            const prod = state.products.find(p => p.id === prodId);
+            const qty = parseInt(document.getElementById('s-qty').value);
+            const total = prod ? prod.sale_price * qty : 0;
+            const cost = prod ? prod.cost_price * qty : 0;
+            const profit = total - cost;
+
+            const saleId = 's_' + Date.now();
+            const newSale = {
+                id: saleId,
+                operation_number: 1000 + state.sales.length + 1,
+                client_name: document.getElementById('s-client').value,
+                total_amount: total,
+                total_cost: cost,
+                estimated_margin: profit,
+                net_profit: profit,
+                mati_profit: profit / 2,
+                cele_profit: profit / 2,
+                payment_status: 'Cobrado',
+                delivery_status: 'Entregado',
+                payment_method: 'Efectivo',
+                paid_amount: total,
+                pending_amount: 0,
+                items: [{ product_id: prodId, product_name: prod ? `${prod.brand} ${prod.name}` : 'Perfume', quantity: qty, unit_price: prod ? prod.sale_price : 0, unit_cost: prod ? prod.cost_price : 0 }]
+            };
+
+            state.sales.push(newSale);
+            state.cashMovements.push({
+                id: 'c_' + Date.now(),
+                type: 'INGRESO',
+                category: 'Venta',
+                description: `Venta #${newSale.operation_number} ${newSale.client_name}`,
+                amount: total,
+                payment_method: 'Efectivo',
+                date: new Date().toISOString().slice(0, 10)
+            });
+
+            if (prod) {
+                prod.physical_stock = Math.max(0, prod.physical_stock - qty);
+            }
+
+            closeDynamicModal();
+            renderCurrentView();
+            notify('Venta registrada con éxito.');
+        }
+
+        function deleteSale(id) {
+            const saleIndex = state.sales.findIndex(s => s.id === id);
+            if (saleIndex === -1) return;
+            const sale = state.sales[saleIndex];
+
+            // Restaurar stock físico de los productos vendidos
+            if (sale.items && sale.items.length > 0) {
+                sale.items.forEach(item => {
+                    const prod = state.products.find(p => p.id === item.product_id);
+                    if (prod) {
+                        prod.physical_stock += item.quantity;
+                    }
+                });
+            }
+
+            // Eliminar el movimiento de caja asociado si existe
+            state.cashMovements = state.cashMovements.filter(c => !c.description.includes(`#${sale.operation_number}`));
+
+            // Remover la venta
+            state.sales.splice(saleIndex, 1);
+
+            renderCurrentView();
+            notify('Venta eliminada y stock restituido.', 'error');
+        }
+
+        function openCashModal() {
+            const modal = document.getElementById('dynamic-modal');
+            const content = document.getElementById('dynamic-modal-content');
+            content.innerHTML = `
+                <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                    <h3 class="font-serif text-lg text-amber-200">Nuevo Movimiento de Caja</h3>
+                    <button onclick="closeDynamicModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveCashMov(event)" class="space-y-3 text-xs">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Tipo</label>
+                            <select id="c-type" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                                <option value="INGRESO">INGRESO</option>
+                                <option value="EGRESO">EGRESO</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Categoría</label>
+                            <input type="text" id="c-cat" value="Insumos" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Descripción</label>
+                        <input type="text" id="c-desc" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200" placeholder="Compra de frascos y atomizadores">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Monto ($)</label>
+                        <input type="number" id="c-amount" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono" placeholder="15000">
+                    </div>
+                    <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Registrar Movimiento</button>
+                </form>
+            `;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function saveCashMov(e) {
+            e.preventDefault();
+            const newMov = {
+                id: 'c_' + Date.now(),
+                type: document.getElementById('c-type').value,
+                category: document.getElementById('c-cat').value,
+                description: document.getElementById('c-desc').value,
+                amount: parseFloat(document.getElementById('c-amount').value),
+                payment_method: 'Efectivo',
+                date: new Date().toISOString().slice(0, 10)
+            };
+            state.cashMovements.push(newMov);
+            closeDynamicModal();
+            renderCurrentView();
+            notify('Movimiento registrado.');
+        }
+
+        function openSupplyModal() {
+            const modal = document.getElementById('dynamic-modal');
+            const content = document.getElementById('dynamic-modal-content');
+            content.innerHTML = `
+                <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                    <h3 class="font-serif text-lg text-amber-200">Agregar Insumo</h3>
+                    <button onclick="closeDynamicModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveSupply(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Nombre Insumo</label>
+                        <input type="text" id="sup-name" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200" placeholder="Cajas de presentación">
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="text-slate-400 block mb-1">Unidad</label>
+                            <input type="text" id="sup-unit" value="Unidades" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Cantidad</label>
+                            <input type="number" id="sup-qty" value="50" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1">Costo Unit. ($)</label>
+                            <input type="number" id="sup-cost" value="1200" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Guardar Insumo</button>
+                </form>
+            `;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function saveSupply(e) {
+            e.preventDefault();
+            const newSup = {
+                id: 'sup_' + Date.now(),
+                name: document.getElementById('sup-name').value,
+                unit: document.getElementById('sup-unit').value,
+                quantity: parseInt(document.getElementById('sup-qty').value),
+                min_stock: 10,
+                unit_cost: parseFloat(document.getElementById('sup-cost').value)
+            };
+            state.supplies.push(newSup);
+            closeDynamicModal();
+            renderCurrentView();
+            notify('Insumo agregado.');
+        }
+
+        function deleteSupply(id) {
+            state.supplies = state.supplies.filter(s => s.id !== id);
+            renderCurrentView();
+            notify('Insumo eliminado.', 'error');
+        }
+
+        function openStockMoveModal(productId) {
+            const prod = state.products.find(p => p.id === productId);
+            if (!prod) return;
+            const modal = document.getElementById('dynamic-modal');
+            const content = document.getElementById('dynamic-modal-content');
+            content.innerHTML = `
+                <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                    <h3 class="font-serif text-lg text-amber-200">Movimiento de Stock: ${prod.brand} ${prod.name}</h3>
+                    <button onclick="closeDynamicModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveStockMove(event, '${prod.id}')" class="space-y-3 text-xs">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Tipo de Movimiento</label>
+                        <select id="sm-type" class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                            <option value="INGRESO">INGRESO (Compra / Producción)</option>
+                            <option value="EGRESO">EGRESO (Merma / Rotura / Ajuste)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Cantidad</label>
+                        <input type="number" id="sm-qty" value="5" min="1" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Motivo / Razón</label>
+                        <input type="text" id="sm-reason" required class="w-full p-2.5 rounded-xl border bg-slate-950 border-slate-800 text-slate-200" placeholder="Nueva tanda de producción">
+                    </div>
+                    <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl">Actualizar Stock</button>
+                </form>
+            `;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function saveStockMove(e, prodId) {
+            e.preventDefault();
+            const prod = state.products.find(p => p.id === prodId);
+            const type = document.getElementById('sm-type').value;
+            const qty = parseInt(document.getElementById('sm-qty').value);
+            const reason = document.getElementById('sm-reason').value;
+
+            if (prod) {
+                if (type === 'INGRESO') prod.physical_stock += qty;
+                else prod.physical_stock = Math.max(0, prod.physical_stock - qty);
+            }
+
+            state.inventoryMovements.push({
+                id: 'm_' + Date.now(),
+                product_id: prodId,
+                type,
+                quantity: qty,
+                reason,
+                user_email: currentUser?.email || 'admin@cmperfumes.com'
+            });
+
+            closeDynamicModal();
+            renderCurrentView();
+            notify('Stock actualizado correctamente.');
+        }
+
+        function closeDynamicModal() {
+            document.getElementById('dynamic-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
